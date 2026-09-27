@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Scorebook & Timer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'media',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        @keyframes pulseGlow {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.4); }
+            70% { transform: scale(1.02); box-shadow: 0 0 0 10px rgba(168, 85, 247, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(168, 85, 247, 0); }
+        }
+        @keyframes pulseAlert {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.01); }
+        }
+        .pulse-active {
+            animation: pulseGlow 0.4s ease-out;
+        }
+        .timer-warning {
+            animation: pulseAlert 0.8s infinite;
+        }
+        ::-webkit-scrollbar {
+            width: 3px;
+            height: 3px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.4);
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 h-screen w-screen flex flex-col landscape:flex-row justify-between selection:bg-purple-500 selection:text-white overflow-hidden transition-colors duration-300">
+
+    <header class="w-full landscape:w-auto landscape:h-screen py-2 px-3 border-b landscape:border-b-0 landscape:border-r border-slate-200/80 dark:border-slate-800/60 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md sticky top-0 landscape:fixed landscape:left-0 z-50 flex landscape:flex-col items-center justify-between landscape:justify-start shrink-0">
+        <div class="max-w-5xl mx-auto landscape:mx-0 flex landscape:flex-col items-center justify-between landscape:justify-start gap-2 w-full">
+            <div class="flex landscape:flex-col items-center gap-1.5 p-1 bg-transparent border border-slate-300/40 dark:border-slate-800/50 rounded-2xl backdrop-blur-sm w-full landscape:w-auto justify-between landscape:justify-start">
+                
+                <!-- Language Toggle -->
+                <button id="langToggleBtn" onclick="toggleLanguage()" class="px-2.5 py-1 text-[11px] font-bold rounded-xl transition-all bg-slate-200/60 dark:bg-slate-900/60 hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-xs text-center flex items-center gap-1" title="Switch Language">
+                    🌐 <span id="langLabel">EN</span>
+                </button>
+
+                <div class="w-px h-4 landscape:w-4 landscape:h-px bg-slate-300/60 dark:bg-slate-800/80"></div>
+
+                <!-- Global History Button -->
+                <button onclick="toggleGlobalHistoryModal()" class="px-2.5 py-1 text-[11px] font-bold rounded-xl transition-all bg-slate-200/60 dark:bg-slate-900/60 hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-xs text-center flex items-center gap-1">
+                    📜 <span class="hidden sm:inline" data-i18n-history-btn>History</span>
+                </button>
+
+                <div class="w-px h-4 landscape:w-4 landscape:h-px bg-slate-300/60 dark:bg-slate-800/80"></div>
+
+                <!-- Rounds History Button -->
+                <button onclick="toggleRoundHistoryModal()" class="px-2.5 py-1 text-[11px] font-bold rounded-xl transition-all bg-slate-200/60 dark:bg-slate-900/60 hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-xs text-center flex items-center gap-1">
+                    🏆 <span class="hidden sm:inline" data-i18n-rounds-btn>Rounds</span>
+                </button>
+
+                <div class="hidden landscape:block w-4 h-px bg-slate-300/60 dark:bg-slate-800/80 my-1"></div>
+
+                <!-- Standalone Calculator Button -->
+                <button onclick="openCalculatorModal()" class="w-8 h-8 bg-slate-800 dark:bg-slate-800 hover:bg-slate-700 text-white rounded-xl shadow-xs transition-all active:scale-95 flex items-center justify-center text-sm shrink-0" title="Calculator">
+                    🧮
+                </button>
+
+                <div class="w-px h-4 landscape:w-4 landscape:h-px bg-slate-300/60 dark:bg-slate-800/80"></div>
+
+                <!-- Settings Modal Trigger Button -->
+                <button onclick="toggleSettingsModal()" class="w-8 h-8 bg-slate-200/70 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 hover:border-slate-400 text-slate-700 dark:text-slate-300 rounded-xl flex items-center justify-center transition-all shadow-xs shrink-0" title="Manage Players">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-5xl w-full mx-auto px-2 py-1.5 landscape:pl-16 landscape:pr-3 flex flex-col gap-1.5 overflow-hidden">
+        
+        <div class="flex items-center justify-between gap-2 bg-white/60 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 px-3 py-1.5 rounded-xl backdrop-blur-md shadow-2xs shrink-0">
+            <div class="flex items-center gap-2">
+                <div class="flex items-center gap-1 bg-purple-600/10 dark:bg-purple-950/40 border border-purple-500/30 px-2 py-0.5 rounded-lg">
+                    <span class="text-[9px] font-bold text-purple-600 dark:text-purple-400 uppercase" data-i18n-round-label>Round</span>
+                    <span id="currentRoundDisplay" class="text-xs font-extrabold text-purple-700 dark:text-purple-300 font-mono">1</span>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-1.5">
+                <button onclick="finishRound()" class="px-2.5 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-[11px] font-bold rounded-lg flex items-center gap-1 transition-all shadow-xs active:scale-95">
+                    <span>🏁</span>
+                    <span data-i18n-finish-round>Завершити</span>
+                </button>
+                <button onclick="resetAllScores()" class="px-2.5 py-1 bg-slate-200/80 dark:bg-slate-800 hover:bg-rose-600 hover:text-white text-slate-700 dark:text-slate-300 text-[11px] font-semibold rounded-lg flex items-center gap-1 transition-all shadow-xs active:scale-95" title="Скинути бали">
+                    <span>🔄</span>
+                    <span class="hidden sm:inline" data-i18n-reset-scores>Скинути</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="timerCard" class="flex flex-col items-center justify-center gap-1 bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 px-3 py-1.5 rounded-xl shadow-2xs transition-all duration-300 shrink-0 relative">
+            <div class="flex items-center justify-between w-full">
+                <div class="flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-purple-600 animate-ping"></span>
+                    <h2 id="activePlayerHeading" class="text-xs font-extrabold text-purple-600 dark:text-purple-400 truncate max-w-[200px]">-</h2>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="penaltyAlertBadge" class="hidden px-1.5 py-0.2 bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 font-bold text-[9px] rounded-full animate-bounce">
+                        ⚠️ <span data-i18n-penalty-active>Штраф!</span>
+                    </span>
+                    <button onclick="passTurn()" class="px-2 py-0.5 bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-bold rounded-lg shadow-2xs transition-all flex items-center gap-1">
+                        <span>➡️</span> <span data-i18n-next-turn>Хід</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-center gap-2 w-full">
+                <button onclick="adjustTime(-5)" class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-[10px] flex items-center justify-center shadow-2xs active:scale-95">-5с</button>
+                <div id="countdownDisplay" class="font-mono text-2xl sm:text-3xl font-black tracking-tight text-slate-800 dark:text-white">
+                    00:30
+                </div>
+                <button onclick="adjustTime(5)" class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-[10px] flex items-center justify-center shadow-2xs active:scale-95">+5с</button>
+                <button onclick="toggleTimerRunning()" id="timerToggleBtn" class="px-2.5 py-1 rounded-lg bg-slate-800 dark:bg-slate-800 text-white text-[10px] font-bold transition-all flex items-center gap-1 ml-1">
+                    <span id="timerToggleIcon">⏸️</span>
+                    <span id="timerToggleText" data-i18n-pause>Пауза</span>
+                </button>
+                <button onclick="resetCurrentTimer()" class="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-bold">🔄</button>
+            </div>
+            
+            <div class="w-full bg-slate-100 dark:bg-slate-800 h-1 rounded-full overflow-hidden">
+                <div id="timerProgressBar" class="bg-purple-600 h-full w-full transition-all duration-1000"></div>
+            </div>
+        </div>
+
+        <div class="flex-1 w-full flex flex-col min-h-0 overflow-hidden">
+            <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 items-start justify-center w-full overflow-y-auto pr-0.5 pb-2" id="playersGrid">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+
+    </main>
+
+    <nav class="w-full landscape:w-auto landscape:h-screen py-2 px-3 border-t landscape:border-t-0 landscape:border-l border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md fixed landscape:right-0 bottom-0 z-40 shadow-xl shrink-0">
+        <div class="max-w-5xl mx-auto landscape:mx-0 flex landscape:flex-col items-center justify-between landscape:justify-center gap-2">
+            <button onclick="openAddPlayerModal()" class="w-full landscape:w-auto py-2 px-4 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 text-white text-xs font-bold rounded-xl shadow-md transition-all transform active:scale-95 flex items-center justify-center gap-1.5">
+                <span>➕</span>
+                <span data-i18n-add-player>Додати гравця</span>
+            </button>
+        </div>
+    </nav>
+
+    <div id="calculatorModal" class="fixed inset-0 z-[100] bg-slate-950 text-slate-100 flex flex-col hidden">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-900/60">
+            <button onclick="toggleCalcHistory()" class="p-2 text-slate-300 hover:text-white rounded-xl hover:bg-slate-800">📜</button>
+            <button onclick="closeCalculatorModal()" class="p-2 text-slate-300 hover:text-white rounded-xl hover:bg-slate-800 font-bold">✕</button>
+        </div>
+        <div class="flex-1 flex flex-col justify-end px-4 py-2 max-w-sm w-full mx-auto relative overflow-hidden">
+            <div id="calcHistoryOverlay" class="absolute inset-0 bg-slate-900/95 z-20 flex flex-col p-4 hidden">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-800 mb-2">
+                    <span class="text-xs font-bold text-slate-300" data-i18n-calc-history-title>Історія обчислень</span>
+                    <button onclick="toggleCalcHistory()" class="text-xs text-purple-400" data-i18n-close>Закрити</button>
+                </div>
+                <div id="calcHistoryList" class="flex-1 overflow-y-auto flex flex-col gap-2"></div>
+            </div>
+            <div id="calcExpression" class="text-3xl font-mono font-medium text-slate-200 text-right w-full min-h-[40px]"></div>
+        </div>
+        <div class="w-full max-w-xs mx-auto p-2 grid grid-cols-4 gap-1 pb-6">
+            <button onclick="calcClear()" class="w-14 h-14 mx-auto rounded-full bg-slate-800 text-purple-400 font-bold">AC</button>
+            <button onclick="calcAppendParenthesis()" class="w-14 h-14 mx-auto rounded-full bg-slate-800 text-slate-300 font-bold">( )</button>
+            <button onclick="calcPercent()" class="w-14 h-14 mx-auto rounded-full bg-slate-800 text-slate-300 font-bold">%</button>
+            <button onclick="calcAppend('÷')" class="w-14 h-14 mx-auto rounded-full bg-slate-800 text-purple-300 font-bold">÷</button>
+            <button onclick="calcAppend('7')" class="w-14 h-14 mx-auto rounded-full bg-slate-900 text-white font-medium">7</button>
+            <button onclick="calcAppend('8')" class="w-14 h-14 mx-auto rounded-full bg-slate-900 text-white font-medium">8</button>
+            <button onclick="calcAppend('9')" class="w-14 h-14 mx-auto rounded-full bg-slate-900 text-white font-medium">9</button>
+            <button onclick="calcAppend('×')" class="w-14 h-14 mx-auto rounded-full bg-slate-800 text-purple-300 font-bold">×</button>
+            <button onclick="calcAppend('4')" class="w-14 h-14 mx-auto rounded-full bg-slate-900 text-white font-medium">4</button>
+            <button onclick="calcAppend('5')" class="w-14 h-14 mx-auto rounded-full bg-slate-900 text-white font-medium">5</button>
+            <button onclick="calcAppend('6')" class="w-14 h-14 mx-auto rounded-full bg-slate-900 text-white font-medium">6</button>
+            <button onclick="calcAppend('-')" class="w-14 h-14 mx-auto rounded-full bg-slate-800 text-purple-300 font-bold">-</button>
+            <button onclick="calcAppend('1')" class="w-14 h-14 mx-auto rounded-full bg-slate-900 text-white font-medium">1</button>
+            <button onclick="calcAppend('2')" class="w-14 h-14 mx-auto rounded-full bg-slate-900 text-white font-medium">2</button>
+            <button onclick="calcAppend('3')" class="w-14 h-14 mx-auto rounded-full bg-slate-900 text-white font-medium">3</button>
+            <button onclick="calcAppend('+')" class="w-14 h-14 mx-auto rounded-full bg-slate-800 text-purple-300 font-bold">+</button>
+            <button onclick="calcAppend('0')" class="w-14 h-14 mx-auto rounded-full bg-slate-900 text-white font-medium col-span-2 w-32">0</button>
+            <button onclick="calcBackSpace()" class="w-14 h-14 mx-auto rounded-full bg-slate-900 text-white font-bold">⌫</button>
+            <button onclick="calcEvaluate()" class="w-14 h-14 mx-auto rounded-full bg-rose-400 text-slate-950 font-bold">=</button>
+        </div>
+    </div>
+
+    <div id="playerOpsModal" class="fixed inset-0 pointer-events-none z-[90] flex justify-center items-center hidden bg-black/60 p-2">
+        <div class="pointer-events-auto bg-white dark:bg-slate-900 w-full max-w-xs rounded-2xl shadow-2xl flex flex-col p-4 gap-3 border border-slate-200 dark:border-slate-800">
+            <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                <h3 id="opsModalPlayerName" class="text-xs font-bold text-slate-800 dark:text-white" data-i18n-player-ops-title>Операції гравця</h3>
+                <button onclick="closePlayerOpsModal()" class="text-slate-500 font-bold">✕</button>
+            </div>
+            <div class="flex flex-col gap-2.5">
+                <div class="text-[11px] font-semibold text-slate-600 dark:text-slate-400" data-i18n-custom-op-label>Виберіть дію та введіть значення:</div>
+                
+                <div class="grid grid-cols-4 gap-1">
+                    <button type="button" onclick="setOpMode('add')" id="modeBtn_add" class="py-1.5 rounded-lg text-xs font-bold border border-slate-300 dark:border-slate-700 bg-purple-600 text-white transition-all">+/-</button>
+                    <button type="button" onclick="setOpMode('mult')" id="modeBtn_mult" class="py-1.5 rounded-lg text-xs font-bold border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 transition-all">×</button>
+                    <button type="button" onclick="setOpMode('div')" id="modeBtn_div" class="py-1.5 rounded-lg text-xs font-bold border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 transition-all">÷</button>
+                    <button type="button" onclick="setOpMode('set')" id="modeBtn_set" class="py-1.5 rounded-lg text-xs font-bold border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 transition-all">=</button>
+                </div>
+
+                <input type="number" id="opValueInput" value="1" class="w-full bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-sm font-mono text-center font-bold text-slate-800 dark:text-white">
+                
+                <button onclick="applyAdvancedOperation()" class="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs mt-1" data-i18n-apply>Застосувати</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="playerHistoryModal" class="fixed inset-0 pointer-events-none z-[80] flex justify-center items-center hidden bg-black/60 p-2">
+        <div class="pointer-events-auto bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl flex flex-col overflow-hidden max-h-[80vh]">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800">
+                <h3 id="modalPlayerTitle" class="text-sm font-bold text-slate-800 dark:text-white" data-i18n-player-history-title>Історія гравця</h3>
+                <button onclick="closePlayerHistoryModal()" class="text-slate-500 font-bold">✕</button>
+            </div>
+            <div id="playerHistoryContentList" class="flex-1 overflow-y-auto p-4 flex flex-col gap-2"></div>
+        </div>
+    </div>
+
+    <div id="roundHistoryModal" class="fixed inset-0 pointer-events-none z-[80] flex justify-center items-center hidden bg-black/60 p-2">
+        <div class="pointer-events-auto bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl flex flex-col overflow-hidden max-h-[80vh]">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800">
+                <h3 class="text-sm font-bold text-slate-800 dark:text-white" data-i18n-rounds-modal-title>Історія раундів</h3>
+                <button onclick="toggleRoundHistoryModal()" class="text-slate-500 font-bold" data-i18n-close>Закрити</button>
+            </div>
+            <div id="roundHistoryContentList" class="flex-1 overflow-y-auto p-4 flex flex-col gap-2"></div>
+        </div>
+    </div>
+
+    <div id="historyModal" class="fixed inset-0 pointer-events-none z-[75] flex items-center justify-center hidden bg-black/50 p-2">
+        <div class="pointer-events-auto bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl max-w-md w-full p-4 shadow-2xl flex flex-col gap-3 max-h-[75vh]">
+            <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                <h3 class="text-xs font-bold text-slate-800 dark:text-white" data-i18n-history-title>Глобальна історія</h3>
+                <button onclick="toggleGlobalHistoryModal()" class="text-slate-500 font-bold" data-i18n-close>✕</button>
+            </div>
+            <div id="historyListContainer" class="flex-1 overflow-y-auto flex flex-col gap-2"></div>
+        </div>
+    </div>
+
+    <div id="addPlayerModal" class="fixed inset-0 pointer-events-none z-[60] flex items-center justify-center hidden bg-black/40 p-2">
+        <div class="pointer-events-auto bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl max-w-xs w-full p-4 shadow-2xl flex flex-col gap-3">
+            <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                <h3 class="text-xs font-bold text-slate-800 dark:text-white" data-i18n-add-player-title>Додати нового гравця</h3>
+                <button onclick="closeAddPlayerModal()" class="text-slate-500 font-bold">✕</button>
+            </div>
+            <input type="text" id="newPlayerNameInput" class="w-full bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white" placeholder="Введіть ім'я...">
+            <button onclick="confirmAddPlayer()" class="w-full py-2 bg-purple-600 text-white font-semibold rounded-xl text-xs" data-i18n-save>Зберегти</button>
+        </div>
+    </div>
+
+    <!-- Custom Message Box Modal to replace alert() -->
+    <div id="messageModal" class="fixed inset-0 pointer-events-none z-[110] flex items-center justify-center hidden bg-black/50 p-2">
+        <div class="pointer-events-auto bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl max-w-xs w-full p-4 shadow-2xl flex flex-col gap-3 text-center">
+            <h3 id="messageModalText" class="text-xs font-bold text-slate-800 dark:text-white"></h3>
+            <button onclick="closeMessageModal()" class="w-full py-2 bg-purple-600 text-white font-semibold rounded-xl text-xs" data-i18n-close>Закрити</button>
+        </div>
+    </div>
+
+    <div id="settingsModal" class="fixed inset-0 pointer-events-none z-[60] flex items-end landscape:items-center landscape:justify-end justify-center hidden">
+        <div class="pointer-events-auto bg-white dark:bg-slate-900 border-t landscape:border-t-0 landscape:border-l border-slate-300 dark:border-slate-800 rounded-t-3xl landscape:rounded-t-none landscape:rounded-l-3xl max-w-sm w-full landscape:h-full p-4 shadow-2xl flex flex-col gap-3 max-h-[85vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                <h3 class="text-xs font-bold text-slate-800 dark:text-white" data-i18n-settings-title>Налаштування та гравці</h3>
+                <button onclick="toggleSettingsModal()" class="text-slate-500 font-bold">✕</button>
+            </div>
+
+            <!-- Timer Configuration settings -->
+            <div class="flex flex-col gap-1.5 p-2.5 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-slate-200 dark:border-slate-800">
+                <span class="text-[10px] font-bold text-slate-500 uppercase" data-i18n-timer-settings>Налаштування таймера</span>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-slate-700 dark:text-slate-300" data-i18n-turn-duration>Час ходу (с):</span>
+                    <input type="number" id="turnDurationInput" min="5" max="9999" value="30" onchange="onTurnDurationChange(this.value)" class="w-16 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg px-2 py-1 text-xs font-mono text-center">
+                </div>
+                <div class="flex items-center justify-between pt-1">
+                    <span class="text-xs text-slate-700 dark:text-slate-300" data-i18n-penalty-points-label>Штрафні бали за тайм-аут:</span>
+                    <input type="number" id="penaltyPointsInput" min="0" max="999" value="1" onchange="onPenaltyPointsChange(this.value)" class="w-16 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg px-2 py-1 text-xs font-mono text-center" title="Бали, що віднімаються при вичерпанні часу">
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <span class="text-[10px] font-bold text-slate-500 uppercase" data-i18n-players-list>Список активних гравців</span>
+                <div id="settingsPlayersList" class="flex flex-col gap-1.5 max-h-[35vh] overflow-y-auto pr-1"></div>
+            </div>
+
+            <button onclick="toggleSettingsModal()" class="w-full py-2 bg-purple-600 text-white font-semibold rounded-xl text-xs" data-i18n-close>Закрити</button>
+        </div>
+    </div>
+
+    <script>
+        let currentLang = 'uk';
+        let currentRound = 1;
+        let players = [];
+        let nextPlayerId = 1;
+        let actionHistory = [];
+        let roundHistory = [];
+
+        let activePlayerIndex = 0;
+        let defaultTurnTime = 30;
+        let timeLeft = 30;
+        let isTimerRunning = true;
+        let penaltyDeductionPoints = 1;
+        let timerInterval = null;
+
+        let activeHistoryPlayerId = null;
+        let activeOpsPlayerId = null;
+        let selectedOpMode = 'add'; // 'add', 'mult', 'div', 'set'
+
+        let calcExpressionStr = '';
+        let calcHistory = [];
+
+        function setCookie(name, value, days = 365) {
+            const d = new Date();
+            d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+            document.cookie = name + "=" + encodeURIComponent(JSON.stringify(value)) + ";" + "expires=" + d.toUTCString() + ";path=/;SameSite=Lax";
+        }
+
+        function getCookie(name) {
+            let nameEQ = name + "=";
+            let ca = document.cookie.split(';');
+            for(let i = 0; i < ca.length; i++) {
+                let c = ca[i];
+                while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) == 0) {
+                    try { return JSON.parse(decodeURIComponent(c.substring(nameEQ.length, c.length))); } catch(e) { return null; }
+                }
+            }
+            return null;
+        }
+
+        function saveStateToCookies() {
+            setCookie('ppm_lang', currentLang);
+            setCookie('ppm_round', currentRound);
+            setCookie('ppm_players', players);
+            setCookie('ppm_nextId', nextPlayerId);
+            setCookie('ppm_actionHistory', actionHistory);
+            setCookie('ppm_roundHistory', roundHistory);
+            setCookie('ppm_calcHistory', calcHistory);
+            setCookie('ppm_turnTime', defaultTurnTime);
+            setCookie('ppm_penaltyPoints', penaltyDeductionPoints);
+        }
+
+        function loadStateFromCookies() {
+            const savedLang = getCookie('ppm_lang'); if (savedLang) currentLang = savedLang;
+            const savedRound = getCookie('ppm_round'); if (savedRound) currentRound = savedRound;
+            const savedPlayers = getCookie('ppm_players'); if (savedPlayers && Array.isArray(savedPlayers)) players = savedPlayers;
+            const savedNextId = getCookie('ppm_nextId'); if (savedNextId) nextPlayerId = savedNextId;
+            const savedHistory = getCookie('ppm_actionHistory'); if (savedHistory && Array.isArray(savedHistory)) actionHistory = savedHistory;
+            const savedRoundHistory = getCookie('ppm_roundHistory'); if (savedRoundHistory && Array.isArray(savedRoundHistory)) roundHistory = savedRoundHistory;
+            const savedCalcHistory = getCookie('ppm_calcHistory'); if (savedCalcHistory && Array.isArray(savedCalcHistory)) calcHistory = savedCalcHistory;
+            const savedTurnTime = getCookie('ppm_turnTime'); if (savedTurnTime) { defaultTurnTime = savedTurnTime; timeLeft = savedTurnTime; }
+            const savedPenaltyPts = getCookie('ppm_penaltyPoints'); if (savedPenaltyPts !== null) penaltyDeductionPoints = savedPenaltyPts;
+        }
+
+        const translations = {
+            uk: {
+                historyBtn: "Історія",
+                roundsBtn: "Раунди",
+                historyTitle: "Глобальна історія",
+                roundLabel: "Раунд",
+                finishRound: "Завершити",
+                resetScores: "Скинути",
+                addPlayer: "Додати гравця",
+                addPlayerTitle: "Додати нового гравця",
+                save: "Зберегти",
+                settingsTitle: "Налаштування та гравці",
+                playersList: "Список активних гравців",
+                close: "Закрити",
+                roundsModalTitle: "Історія раундів",
+                calcHistoryTitle: "Історія обчислень",
+                turnDuration: "Час ходу (с):",
+                penaltyPointsLabel: "Штрафні бали за тайм-аут:",
+                timerSettings: "Налаштування таймера",
+                nextTurn: "Хід",
+                pause: "Пауза",
+                resume: "Далі",
+                penaltyAlert: "Штраф!",
+                playerHistoryTitle: "Історія гравця",
+                playerOpsTitle: "Операції гравця",
+                customOpLabel: "Виберіть дію та введіть значення:",
+                apply: "Застосувати",
+                actionScoreBtn: "Дія / Бали",
+                noPlayers: "Гравців ще не додано. Натисніть «Додати гравця» внизу!",
+                noHistory: "Немає записів історії.",
+                noRounds: "Ще не завершено жодного раунду.",
+                maxPlayersError: "Максимальна кількість гравців — 8!"
+            },
+            en: {
+                historyBtn: "History",
+                roundsBtn: "Rounds",
+                historyTitle: "Global History",
+                roundLabel: "Round",
+                finishRound: "Finish",
+                resetScores: "Reset",
+                addPlayer: "Add Player",
+                addPlayerTitle: "Add New Player",
+                save: "Save",
+                settingsTitle: "Settings & Players",
+                playersList: "Active Players List",
+                close: "Close",
+                roundsModalTitle: "Rounds History",
+                calcHistoryTitle: "Calculation History",
+                turnDuration: "Turn Time (s):",
+                penaltyPointsLabel: "Penalty Points:",
+                timerSettings: "Timer Settings",
+                nextTurn: "Turn",
+                pause: "Pause",
+                resume: "Resume",
+                penaltyAlert: "Penalty!",
+                playerHistoryTitle: "Player History",
+                playerOpsTitle: "Player Operations",
+                customOpLabel: "Select operation & enter value:",
+                apply: "Apply",
+                actionScoreBtn: "Op / Score",
+                noPlayers: "No players added yet. Click 'Add Player' below!",
+                noHistory: "No history records.",
+                noRounds: "No rounds finished yet.",
+                maxPlayersError: "Maximum number of players is 8!"
+            }
+        };
+
+        const colorClasses = [
+            { id: 'purple', bg: 'border-purple-500 bg-purple-50/40 dark:bg-purple-950/20' },
+            { id: 'blue', bg: 'border-sky-500 bg-sky-50/40 dark:bg-sky-950/20' },
+            { id: 'green', bg: 'border-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/20' },
+            { id: 'orange', bg: 'border-amber-500 bg-amber-50/40 dark:bg-amber-950/20' },
+            { id: 'red', bg: 'border-rose-500 bg-rose-50/40 dark:bg-rose-950/20' }
+        ];
+
+        let audioCtx = null;
+        function playSound(type) {
+            try {
+                if (isAnyModalOpen() || !isTimerRunning) return;
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const now = audioCtx.currentTime;
+                if (type === 'tick') {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.frequency.setValueAtTime(600, now);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.start(now); osc.stop(now + 0.05);
+                } else if (type === 'explosion') {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.exponentialRampToValueAtTime(30, now + 0.8);
+                    gain.gain.setValueAtTime(0.5, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.start(now); osc.stop(now + 0.8);
+                }
+            } catch(e) {}
+        }
+
+        function isAnyModalOpen() {
+            return !document.getElementById('calculatorModal').classList.contains('hidden') ||
+                   !document.getElementById('playerOpsModal').classList.contains('hidden') ||
+                   !document.getElementById('playerHistoryModal').classList.contains('hidden') ||
+                   !document.getElementById('roundHistoryModal').classList.contains('hidden') ||
+                   !document.getElementById('historyModal').classList.contains('hidden') ||
+                   !document.getElementById('addPlayerModal').classList.contains('hidden') ||
+                   !document.getElementById('messageModal').classList.contains('hidden') ||
+                   !document.getElementById('settingsModal').classList.contains('hidden');
+        }
+
+        function showMessage(text) {
+            document.getElementById('messageModalText').innerText = text;
+            document.getElementById('messageModal').classList.remove('hidden');
+        }
+
+        function closeMessageModal() {
+            document.getElementById('messageModal').classList.add('hidden');
+        }
+
+        function startTimerEngine() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (!isTimerRunning || isAnyModalOpen()) return;
+                
+                if (timeLeft > 1) {
+                    timeLeft--;
+                    if (timeLeft <= 5) {
+                        playSound('tick');
+                    }
+                } else if (timeLeft === 1) {
+                    timeLeft = 0;
+                    renderTimerDisplay();
+                    
+                    playSound('explosion');
+                    if (players.length > 0) {
+                        const curPlayer = players[activePlayerIndex];
+                        if (curPlayer) {
+                            curPlayer.score -= penaltyDeductionPoints;
+                            curPlayer.history.unshift({
+                                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                                operation: `-${penaltyDeductionPoints} (Penalty)`,
+                                delta: -penaltyDeductionPoints,
+                                desc: `${curPlayer.name} timeout penalty (-${penaltyDeductionPoints})`,
+                                resultingScore: curPlayer.score
+                            });
+                        }
+                    }
+                    
+                    setTimeout(() => {
+                        timeLeft = defaultTurnTime;
+                        if (players.length > 0) {
+                            activePlayerIndex = (activePlayerIndex + 1) % players.length;
+                        }
+                        renderAll();
+                    }, 400);
+                }
+                renderTimerDisplay();
+            }, 1000);
+        }
+
+        function renderTimerDisplay() {
+            const display = document.getElementById('countdownDisplay');
+            const heading = document.getElementById('activePlayerHeading');
+            const progressBar = document.getElementById('timerProgressBar');
+
+            if (players.length === 0) {
+                if (heading) heading.innerText = currentLang === 'uk' ? "Очікування гравців..." : "Waiting for players...";
+            } else {
+                if (activePlayerIndex >= players.length) activePlayerIndex = 0;
+                const curPlayer = players[activePlayerIndex];
+                if (heading) heading.innerText = curPlayer ? curPlayer.name : "-";
+            }
+
+            let mins = Math.floor(timeLeft / 60);
+            let secs = timeLeft % 60;
+            if (display) display.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+            if (progressBar) {
+                let pct = (timeLeft / defaultTurnTime) * 100;
+                progressBar.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+            }
+        }
+
+        function toggleTimerRunning() {
+            isTimerRunning = !isTimerRunning;
+            const t = translations[currentLang];
+            const icon = document.getElementById('timerToggleIcon');
+            const text = document.getElementById('timerToggleText');
+            if (icon) icon.innerText = isTimerRunning ? '⏸️' : '▶️';
+            if (text) text.innerText = isTimerRunning ? t.pause : t.resume;
+        }
+
+        function resetCurrentTimer() {
+            timeLeft = defaultTurnTime;
+            renderTimerDisplay();
+        }
+
+        function adjustTime(secs) {
+            timeLeft = Math.max(0, timeLeft + secs);
+            renderTimerDisplay();
+        }
+
+        function passTurn() {
+            if (players.length === 0) return;
+            activePlayerIndex = (activePlayerIndex + 1) % players.length;
+            timeLeft = defaultTurnTime;
+            isTimerRunning = true;
+            renderAll();
+        }
+
+        function onTurnDurationChange(val) {
+            let num = parseInt(val);
+            if (!isNaN(num) && num >= 5) {
+                defaultTurnTime = num;
+                timeLeft = num;
+                saveStateToCookies();
+                renderTimerDisplay();
+            }
+        }
+
+        function onPenaltyPointsChange(val) {
+            let num = parseInt(val);
+            if (!isNaN(num) && num >= 0) {
+                penaltyDeductionPoints = num;
+                saveStateToCookies();
+            }
+        }
+
+        function openCalculatorModal() { document.getElementById('calculatorModal').classList.remove('hidden'); updateCalcDisplay(); }
+        function closeCalculatorModal() { document.getElementById('calculatorModal').classList.add('hidden'); }
+        function calcClear() { calcExpressionStr = ''; updateCalcDisplay(); }
+        function calcBackSpace() { calcExpressionStr = calcExpressionStr.slice(0, -1); updateCalcDisplay(); }
+        function calcAppend(char) { calcExpressionStr += char; updateCalcDisplay(); }
+        function calcAppendParenthesis() { calcExpressionStr += '('; updateCalcDisplay(); }
+        function calcPercent() { calcExpressionStr += '%'; updateCalcDisplay(); }
+        function updateCalcDisplay() { document.getElementById('calcExpression').innerText = calcExpressionStr || '0'; }
+        function calcEvaluate() {
+            try {
+                let res = Function('"use strict"; return (' + calcExpressionStr.replace(/×/g, '*').replace(/÷/g, '/') + ')')();
+                calcExpressionStr = Number(res.toFixed(4)).toString();
+                updateCalcDisplay();
+            } catch(e) { calcExpressionStr = 'Error'; updateCalcDisplay(); }
+        }
+        function toggleCalcHistory() { document.getElementById('calcHistoryOverlay').classList.toggle('hidden'); }
+
+        function openPlayerOpsModal(id) {
+            activeOpsPlayerId = id;
+            const p = players.find(x => x.id === id);
+            document.getElementById('opsModalPlayerName').innerText = p ? `${p.name}` : '';
+            setOpMode('add');
+            document.getElementById('opValueInput').value = '1';
+            document.getElementById('playerOpsModal').classList.remove('hidden');
+        }
+
+        function closePlayerOpsModal() {
+            document.getElementById('playerOpsModal').classList.add('hidden');
+            activeOpsPlayerId = null;
+        }
+
+        function setOpMode(mode) {
+            selectedOpMode = mode;
+            ['add', 'mult', 'div', 'set'].forEach(m => {
+                const btn = document.getElementById(`modeBtn_${m}`);
+                if (btn) {
+                    if (m === mode) {
+                        btn.className = 'py-1.5 rounded-lg text-xs font-bold border border-purple-500 bg-purple-600 text-white transition-all';
+                    } else {
+                        btn.className = 'py-1.5 rounded-lg text-xs font-bold border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 transition-all';
+                    }
+                }
+            });
+            const input = document.getElementById('opValueInput');
+            if (input) {
+                if (mode === 'mult' || mode === 'div') {
+                    if (input.value === '1' || input.value === '0') input.value = '2';
+                } else if (mode === 'add') {
+                    if (input.value === '0') input.value = '1';
+                }
+            }
+        }
+
+        function applyAdvancedOperation() {
+            if (activeOpsPlayerId === null) return;
+            const p = players.find(x => x.id === activeOpsPlayerId);
+            if (!p) return;
+            const val = parseFloat(document.getElementById('opValueInput').value);
+            if (isNaN(val)) return;
+
+            let oldScore = p.score;
+            let operationLabel = '';
+            let desc = '';
+
+            if (selectedOpMode === 'add') {
+                p.score += val;
+                operationLabel = val >= 0 ? `+${val}` : `${val}`;
+                desc = `${p.name} (${operationLabel})`;
+            } else if (selectedOpMode === 'mult') {
+                p.score = Math.round(p.score * val);
+                operationLabel = `×${val}`;
+                desc = `${p.name} (${operationLabel})`;
+            } else if (selectedOpMode === 'div') {
+                if (val === 0) return;
+                p.score = Math.round(p.score / val);
+                operationLabel = `÷${val}`;
+                desc = `${p.name} (${operationLabel})`;
+            } else if (selectedOpMode === 'set') {
+                p.score = Math.round(val);
+                operationLabel = `=${val}`;
+                desc = `${p.name} (${operationLabel})`;
+            }
+
+            p.history.unshift({
+                time: new Date().toLocaleTimeString(),
+                operation: operationLabel,
+                delta: p.score - oldScore,
+                desc: desc,
+                resultingScore: p.score
+            });
+
+            closePlayerOpsModal();
+            renderAll();
+            saveStateToCookies();
+        }
+
+        function toggleGlobalHistoryModal() {
+            const modal = document.getElementById('historyModal');
+            modal.classList.toggle('hidden');
+            const t = translations[currentLang];
+            if (!modal.classList.contains('hidden')) {
+                const container = document.getElementById('historyListContainer');
+                let allActions = [];
+                players.forEach(p => {
+                    p.history.forEach(h => {
+                        allActions.push({ ...h, playerName: p.name });
+                    });
+                });
+                container.innerHTML = allActions.length === 0 ? `<div class="text-center text-xs text-slate-400 py-6">${t.noHistory}</div>` :
+                    allActions.map(a => `<div class="p-2 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs flex justify-between"><span><b>${a.playerName}</b>: ${a.desc}</span><span class="text-slate-400 font-mono text-[10px]">${a.time}</span></div>`).join('');
+            }
+        }
+
+        function finishRound() {
+            if (players.length === 0) return;
+            roundHistory.unshift({ roundNumber: currentRound, date: new Date().toLocaleDateString(), playersSnapshot: players.map(p => ({ name: p.name, score: p.score })) });
+            currentRound++;
+            renderAll();
+            saveStateToCookies();
+            toggleRoundHistoryModal();
+        }
+
+        function toggleRoundHistoryModal() {
+            const modal = document.getElementById('roundHistoryModal');
+            modal.classList.toggle('hidden');
+            const t = translations[currentLang];
+            if (!modal.classList.contains('hidden')) {
+                document.getElementById('roundHistoryContentList').innerHTML = roundHistory.length === 0 ? `<div class="text-center text-xs text-slate-400 py-6">${t.noRounds}</div>` :
+                    roundHistory.map(r => `<div class="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl text-xs flex flex-col gap-1"><b class="text-purple-600">${t.roundLabel} #${r.roundNumber}</b>` + r.playersSnapshot.map(ps => `<div class="flex justify-between"><span>${ps.name}</span><b class="font-mono">${ps.score}</b></div>`).join('') + `</div>`).join('');
+            }
+        }
+
+        function openPlayerHistory(id) {
+            activeHistoryPlayerId = id;
+            document.getElementById('playerHistoryModal').classList.remove('hidden');
+            const p = players.find(x => x.id === id);
+            const t = translations[currentLang];
+            document.getElementById('modalPlayerTitle').innerText = p ? `${t.playerHistoryTitle}: ${p.name}` : '';
+            document.getElementById('playerHistoryContentList').innerHTML = p && p.history.length ? p.history.map(h => `<div class="p-2 bg-slate-100 dark:bg-slate-950 rounded-xl text-xs flex justify-between"><span>${h.desc}</span><b class="font-mono">${h.resultingScore}</b></div>`).join('') : `<div class="text-center text-xs text-slate-400 py-4">${t.noHistory}</div>`;
+        }
+        function closePlayerHistoryModal() { document.getElementById('playerHistoryModal').classList.add('hidden'); }
+
+        function toggleLanguage() {
+            currentLang = currentLang === 'en' ? 'uk' : 'en';
+            applyLanguage();
+            saveStateToCookies();
+        }
+
+        function applyLanguage() {
+            const t = translations[currentLang];
+            document.getElementById('langLabel').innerText = currentLang.toUpperCase();
+            document.querySelectorAll('[data-i18n-history-btn]').forEach(el => el.innerText = t.historyBtn);
+            document.querySelectorAll('[data-i18n-rounds-btn]').forEach(el => el.innerText = t.roundsBtn);
+            document.querySelectorAll('[data-i18n-history-title]').forEach(el => el.innerText = t.historyTitle);
+            document.querySelectorAll('[data-i18n-round-label]').forEach(el => el.innerText = t.roundLabel);
+            document.querySelectorAll('[data-i18n-finish-round]').forEach(el => el.innerText = t.finishRound);
+            document.querySelectorAll('[data-i18n-reset-scores]').forEach(el => el.innerText = t.resetScores);
+            document.querySelectorAll('[data-i18n-add-player]').forEach(el => el.innerText = t.addPlayer);
+            document.querySelectorAll('[data-i18n-add-player-title]').forEach(el => el.innerText = t.addPlayerTitle);
+            document.querySelectorAll('[data-i18n-save]').forEach(el => el.innerText = t.save);
+            document.querySelectorAll('[data-i18n-settings-title]').forEach(el => el.innerText = t.settingsTitle);
+            document.querySelectorAll('[data-i18n-players-list]').forEach(el => el.innerText = t.playersList);
+            document.querySelectorAll('[data-i18n-close]').forEach(el => el.innerText = t.close);
+            document.querySelectorAll('[data-i18n-rounds-modal-title]').forEach(el => el.innerText = t.roundsModalTitle);
+            document.querySelectorAll('[data-i18n-turn-duration]').forEach(el => el.innerText = t.turnDuration);
+            document.querySelectorAll('[data-i18n-penalty-points-label]').forEach(el => el.innerText = t.penaltyPointsLabel);
+            document.querySelectorAll('[data-i18n-timer-settings]').forEach(el => el.innerText = t.timerSettings);
+            document.querySelectorAll('[data-i18n-next-turn]').forEach(el => el.innerText = t.nextTurn);
+            document.querySelectorAll('[data-i18n-penalty-active]').forEach(el => el.innerText = t.penaltyAlert);
+            document.querySelectorAll('[data-i18n-player-history-title]').forEach(el => el.innerText = t.playerHistoryTitle);
+            document.querySelectorAll('[data-i18n-player-ops-title]').forEach(el => el.innerText = t.playerOpsTitle);
+            document.querySelectorAll('[data-i18n-custom-op-label]').forEach(el => el.innerText = t.customOpLabel);
+            document.querySelectorAll('[data-i18n-apply]').forEach(el => el.innerText = t.apply);
+            document.querySelectorAll('[data-i18n-pause]').forEach(el => el.innerText = isTimerRunning ? t.pause : t.resume);
+            renderAll();
+        }
+
+        function openAddPlayerModal() {
+            if (players.length >= 8) {
+                showMessage(translations[currentLang].maxPlayersError);
+                return;
+            }
+            document.getElementById('addPlayerModal').classList.remove('hidden');
+        }
+        function closeAddPlayerModal() { document.getElementById('addPlayerModal').classList.add('hidden'); }
+
+        function confirmAddPlayer() {
+            if (players.length >= 8) {
+                closeAddPlayerModal();
+                showMessage(translations[currentLang].maxPlayersError);
+                return;
+            }
+            const input = document.getElementById('newPlayerNameInput');
+            const name = input && input.value.trim() ? input.value.trim() : `Гравець ${players.length + 1}`;
+            players.push({ id: nextPlayerId++, name, score: 0, color: colorClasses[players.length % colorClasses.length].id, history: [] });
+            closeAddPlayerModal();
+            if (input) input.value = '';
+            renderAll();
+            saveStateToCookies();
+        }
+
+        function toggleSettingsModal() {
+            const modal = document.getElementById('settingsModal');
+            modal.classList.toggle('hidden');
+            if (!modal.classList.contains('hidden')) {
+                document.getElementById('turnDurationInput').value = defaultTurnTime;
+                document.getElementById('penaltyPointsInput').value = penaltyDeductionPoints;
+                document.getElementById('settingsPlayersList').innerHTML = players.length === 0 ? `<div class="text-xs text-slate-400 text-center py-2">${translations[currentLang].noPlayers}</div>` :
+                    players.map((p, idx) => `<div class="flex items-center justify-between p-1.5 bg-slate-100 dark:bg-slate-950 rounded-xl"><span class="text-xs">${p.name}</span><button onclick="removePlayer(${p.id})" class="text-rose-500 text-xs px-2 py-0.5">🗑️</button></div>`).join('');
+            }
+        }
+
+        function removePlayer(id) {
+            players = players.filter(x => x.id !== id);
+            toggleSettingsModal();
+            toggleSettingsModal();
+            renderAll();
+            saveStateToCookies();
+        }
+
+        function resetAllScores() {
+            players.forEach(p => { p.score = 0; p.history = []; });
+            renderAll();
+            saveStateToCookies();
+        }
+
+        function renderAll() {
+            const grid = document.getElementById('playersGrid');
+            const roundDisplay = document.getElementById('currentRoundDisplay');
+            const t = translations[currentLang];
+            if (!grid) return;
+            grid.innerHTML = '';
+            if (roundDisplay) roundDisplay.innerText = currentRound;
+
+            if (players.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-8 text-slate-400 text-xs">${t.noPlayers}</div>`;
+                renderTimerDisplay();
+                return;
+            }
+
+            players.forEach((player, index) => {
+                const colorObj = colorClasses.find(c => c.id === player.color) || colorClasses[0];
+                const card = document.createElement('div');
+                card.className = `w-full bg-white/90 dark:bg-slate-900/90 border ${colorObj.bg} rounded-xl p-2 flex flex-col justify-between gap-1.5 shadow-xs`;
+                card.innerHTML = `
+                    <div class="flex flex-col gap-0.5 border-b border-slate-200/50 dark:border-slate-800/50 pb-1">
+                        <div class="text-[11px] font-bold text-slate-700 dark:text-slate-200 leading-tight">
+                            #${index + 1} <span class="break-words">${player.name}</span>
+                        </div>
+                        <div class="flex items-center justify-end">
+                            <span class="text-sm sm:text-base font-black text-purple-600 dark:text-purple-400 font-mono tracking-tight break-all text-right">${player.score}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button onclick="openPlayerHistory(${player.id})" class="text-[10px] bg-slate-200 dark:bg-slate-800 px-2 py-1 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors" title="Історія гравця">📜</button>
+                        <button onclick="openPlayerOpsModal(${player.id})" class="flex-1 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-[10px] font-bold transition-all shadow-xs flex items-center justify-center gap-1">
+                            <span>± × ÷</span> <span>${t.actionScoreBtn}</span>
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+            renderTimerDisplay();
+        }
+
+        window.onload = function() {
+            loadStateFromCookies();
+            applyLanguage();
+            startTimerEngine();
+        };
+    </script>
+</body>
+</html>
